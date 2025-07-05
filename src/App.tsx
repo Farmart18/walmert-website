@@ -1,35 +1,242 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React, { useEffect, useState } from 'react';
+import { supabase } from './supabaseClient';
+import Header from './components/Header';
+import NotificationBanner from './components/NotificationBanner';
+import LoginPopover from './components/LoginPopover';
+import NotificationForm from './components/NotificationForm';
+import NotificationList from './components/NotificationList';
+import Footer from './components/Footer';
+import { Box, Paper, Divider, Button, Alert } from '@mui/material';
 
-function App() {
-  const [count, setCount] = useState(0)
-
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+interface Notification {
+  id: number;
+  title: string;
+  message: string;
+  created_at: string;
+  author: string;
 }
 
-export default App
+const WALMART_BLUE = '#0071CE';
+const WALMART_YELLOW = '#FFC220';
+
+// ErrorBoundary component
+class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean, error: any}> {
+  constructor(props: {children: React.ReactNode}) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error: any, errorInfo: any) {
+  }
+  render() {
+    if (this.state.hasError) {
+      return <Box sx={{ p: 4, textAlign: 'center' }}><Alert severity="error">Something went wrong: {this.state.error?.message || 'Unknown error'}</Alert></Box>;
+    }
+    return this.props.children;
+  }
+}
+
+function App() {
+  const [user, setUser] = useState<any>(null);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [title, setTitle] = useState('');
+  const [message, setMessage] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [snackbar, setSnackbar] = useState<{open: boolean, message: string, severity: 'success'|'error'}>({open: false, message: '', severity: 'success'});
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [showBanner, setShowBanner] = useState(true);
+  const [envError, setEnvError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Check for missing env vars
+    if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+      setEnvError('Missing Supabase environment variables. Please check your .env file.');
+      return;
+    }
+    fetchNotifications();
+    supabase.auth.getUser().then(({ data }) => setUser(data.user));
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+
+  async function fetchNotifications() {
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (!error && data) setNotifications(data as Notification[]);
+  }
+
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      setSnackbar({open: true, message: error.message, severity: 'error'});
+      setPassword('');
+    } else {
+      setSnackbar({open: true, message: 'Logged in!', severity: 'success'});
+      const { data: userData } = await supabase.auth.getUser();
+      setUser(userData.user);
+      setAnchorEl(null);
+      setEmail('');
+      setPassword('');
+    }
+  }
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    setSnackbar({open: true, message: 'Logged out!', severity: 'success'});
+  }
+
+  async function handlePost(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title || !message) return;
+    const { error } = await supabase.from('notifications').insert([
+      { title, message, author: user.email }
+    ]);
+    if (error) setSnackbar({open: true, message: error.message, severity: 'error'});
+    else {
+      setSnackbar({open: true, message: 'Notification posted!', severity: 'success'});
+      setTitle('');
+      setMessage('');
+      fetchNotifications();
+    }
+  }
+
+  async function handleDeleteNotification(id: number) {
+    const { error } = await supabase.from('notifications').delete().eq('id', id);
+    if (error) {
+      setSnackbar({open: true, message: error.message, severity: 'error'});
+    } else {
+      setSnackbar({open: true, message: 'Notification deleted!', severity: 'success'});
+      fetchNotifications();
+    }
+  }
+
+  const handleProfileClick = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+  const handleProfileClose = () => {
+    setAnchorEl(null);
+  };
+  const open = Boolean(anchorEl);
+
+  const goToWalmart = () => window.open('https://www.walmart.com', '_blank', 'noopener,noreferrer');
+  const latestNotification = notifications.length > 0 ? notifications[0] : null;
+
+  if (envError) {
+    return (
+      <Box sx={{ p: 4, textAlign: 'center' }}>
+        <Alert severity="error">{envError}</Alert>
+      </Box>
+    );
+  }
+
+  return (
+    <ErrorBoundary>
+      <Box sx={{ background: '#f2f8fd', minHeight: '100vh', width: '100vw', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+        <Header onProfileClick={handleProfileClick} goToWalmart={goToWalmart} />
+        <NotificationBanner notification={latestNotification} show={!user && showBanner} onClose={() => setShowBanner(false)} />
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          {user && (
+            <Box sx={{
+              width: '100vw',
+              height: { xs: 'auto', md: 'calc(100vh - 136px - 64px)' },
+              minHeight: { xs: 'auto', md: 'calc(100vh - 136px - 64px)' },
+              display: 'flex',
+              flexDirection: { xs: 'column', md: 'row' },
+              p: 0,
+              m: 0,
+              gap: 0,
+              background: 'transparent',
+              flex: 1,
+            }}>
+              <Box sx={{
+                flex: 1,
+                height: { xs: 'auto', md: '100%' },
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'flex-start',
+                borderRight: { md: '1.5px solid #e7f0f7' },
+                background: 'transparent',
+                p: { xs: 0, md: 4 },
+              }}>
+                <Paper sx={{
+                  p: { xs: 2, sm: 3 },
+                  borderRadius: 3,
+                  boxShadow: '0 8px 32px rgba(0, 113, 206, 0.08)',
+                  border: '1px solid rgba(0, 113, 206, 0.08)',
+                  height: { xs: 'auto', md: '100%' },
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'flex-start',
+                  background: '#fff',
+                }}>
+                  <NotificationForm
+                    title={title}
+                    message={message}
+                    setTitle={setTitle}
+                    setMessage={setMessage}
+                    onPost={handlePost}
+                  />
+                  <Divider sx={{ my: 3 }} />
+                  <Button fullWidth variant="outlined" color="primary" onClick={handleLogout} sx={{ fontWeight: 'bold', borderRadius: 2, borderColor: WALMART_BLUE, color: WALMART_BLUE, '&:hover': { background: '#f2f8fd' } }}>
+                    Logout
+                  </Button>
+                </Paper>
+              </Box>
+              <Box sx={{
+                flex: 1,
+                height: { xs: 'auto', md: '100%' },
+                display: 'flex',
+                flexDirection: 'column',
+                background: 'transparent',
+                p: { xs: 0, md: 4 },
+              }}>
+                <Paper sx={{
+                  p: { xs: 2, sm: 3 },
+                  borderRadius: 3,
+                  boxShadow: '0 8px 32px rgba(0, 113, 206, 0.08)',
+                  border: '1px solid rgba(0, 113, 206, 0.08)',
+                  flex: 1,
+                  minHeight: 0,
+                  height: { xs: 'auto', md: '100%' },
+                  overflow: 'auto',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  background: '#fff',
+                }}>
+                  <NotificationList
+                    notifications={notifications}
+                    user={user}
+                    onDelete={handleDeleteNotification}
+                  />
+                </Paper>
+              </Box>
+            </Box>
+          )}
+          <LoginPopover
+            open={open}
+            anchorEl={anchorEl}
+            onClose={handleProfileClose}
+            email={email}
+            password={password}
+            setEmail={setEmail}
+            setPassword={setPassword}
+            onLogin={handleLogin}
+          />
+        </Box>
+        <Footer />
+      </Box>
+    </ErrorBoundary>
+  );
+}
+
+export default App;
