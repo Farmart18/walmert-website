@@ -5,10 +5,12 @@ export default function Footer() {
   return (
     <Box component="footer" sx={{
       width: '100%',
+      // maxWidth: '1280px',
+      margin: '0 auto',
       background: WALMART_BLUE,
       color: '#fff',
       py: 2,
-      px: { xs: 2, md: 6 },
+      // px: { xs: 2, md: 6 },
       textAlign: 'center',
       fontSize: { xs: '0.95rem', md: '1.05rem' },
       fontWeight: 500,

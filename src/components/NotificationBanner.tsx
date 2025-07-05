@@ -9,14 +9,16 @@ export default function NotificationBanner({ notification, show, onClose }: { no
   if (!notification || !show) return null;
   return (
     <Box sx={{
-      width: '100%',
+      width: '100vw',
+      // maxWidth: '1280px',
+      margin: '0 auto',
       background: WALMART_YELLOW,
       color: '#222',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       py: 1.5,
-      px: 2,
+      // px: 2,
       fontWeight: 600,
       fontSize: { xs: '1rem', sm: '1.1rem' },
       position: 'relative',
