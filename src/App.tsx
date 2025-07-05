@@ -27,8 +27,7 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasErr
   static getDerivedStateFromError(error: any) {
     return { hasError: true, error };
   }
-  componentDidCatch(error: any, errorInfo: any) {
-  }
+  componentDidCatch() {}
   render() {
     if (this.state.hasError) {
       return <Box sx={{ p: 4, textAlign: 'center' }}><Alert severity="error">Something went wrong: {this.state.error?.message || 'Unknown error'}</Alert></Box>;
@@ -74,7 +73,7 @@ function App() {
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       setPassword('');
     } else {
