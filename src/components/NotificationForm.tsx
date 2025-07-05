@@ -1,6 +1,5 @@
 import { Box, Typography, TextField, Button } from '@mui/material';
 const WALMART_BLUE = '#0071CE';
-const WALMART_YELLOW = '#FFC220';
 
 export default function NotificationForm({ title, message, setTitle, setMessage, onPost }: {
   title: string,

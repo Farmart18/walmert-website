@@ -17,7 +17,6 @@ interface Notification {
 }
 
 const WALMART_BLUE = '#0071CE';
-const WALMART_YELLOW = '#FFC220';
 
 // ErrorBoundary component
 class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean, error: any}> {
@@ -45,7 +44,6 @@ function App() {
   const [message, setMessage] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [snackbar, setSnackbar] = useState<{open: boolean, message: string, severity: 'success'|'error'}>({open: false, message: '', severity: 'success'});
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [showBanner, setShowBanner] = useState(true);
   const [envError, setEnvError] = useState<string | null>(null);
@@ -78,10 +76,8 @@ function App() {
     e.preventDefault();
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      setSnackbar({open: true, message: error.message, severity: 'error'});
       setPassword('');
     } else {
-      setSnackbar({open: true, message: 'Logged in!', severity: 'success'});
       const { data: userData } = await supabase.auth.getUser();
       setUser(userData.user);
       setAnchorEl(null);
@@ -92,7 +88,6 @@ function App() {
 
   async function handleLogout() {
     await supabase.auth.signOut();
-    setSnackbar({open: true, message: 'Logged out!', severity: 'success'});
   }
 
   async function handlePost(e: React.FormEvent) {
@@ -101,9 +96,8 @@ function App() {
     const { error } = await supabase.from('notifications').insert([
       { title, message, author: user.email }
     ]);
-    if (error) setSnackbar({open: true, message: error.message, severity: 'error'});
-    else {
-      setSnackbar({open: true, message: 'Notification posted!', severity: 'success'});
+    if (error) {
+    } else {
       setTitle('');
       setMessage('');
       fetchNotifications();
@@ -113,9 +107,7 @@ function App() {
   async function handleDeleteNotification(id: number) {
     const { error } = await supabase.from('notifications').delete().eq('id', id);
     if (error) {
-      setSnackbar({open: true, message: error.message, severity: 'error'});
     } else {
-      setSnackbar({open: true, message: 'Notification deleted!', severity: 'success'});
       fetchNotifications();
     }
   }
