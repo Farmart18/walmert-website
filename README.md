@@ -68,9 +68,3 @@ Only batches with `is_finalized = true` are shown on the home screen as cards.
 - `src/App.tsx`: Main app logic, fetches notifications and batches
 - `src/components/Notification*`: Notification UI components
 
-## Customization
-- Update Supabase table/column names as needed in `src/App.tsx`
-- Adjust card fields in `src/components/BatchCard.tsx`
-
-## License
-MIT
