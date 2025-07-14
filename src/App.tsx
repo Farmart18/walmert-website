@@ -6,6 +6,7 @@ import LoginPopover from './components/LoginPopover';
 import NotificationForm from './components/NotificationForm';
 import NotificationList from './components/NotificationList';
 import Footer from './components/Footer';
+import BatchCard from './components/BatchCard';
 import { Box, Paper, Divider, Button, Alert } from '@mui/material';
 
 interface Notification {
@@ -16,9 +17,19 @@ interface Notification {
   author: string;
 }
 
+interface Batch {
+  id: string;
+  crop_type: string;
+  variety: string;
+  sowing_date: string;
+  notes: string;
+  blockchain_hash: string;
+  created_at: string;
+}
+
 const WALMART_BLUE = '#0071CE';
 
-// ErrorBoundary component
+// ErrorBoundary component and
 class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean, error: any}> {
   constructor(props: {children: React.ReactNode}) {
     super(props);
@@ -39,6 +50,7 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasErr
 function App() {
   const [user, setUser] = useState<any>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [batches, setBatches] = useState<Batch[]>([]);
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [email, setEmail] = useState('');
@@ -54,6 +66,7 @@ function App() {
       return;
     }
     fetchNotifications();
+    fetchFinalizedBatches();
     supabase.auth.getUser().then(({ data }) => setUser(data.user));
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
@@ -69,6 +82,16 @@ function App() {
       .select('*')
       .order('created_at', { ascending: false });
     if (!error && data) setNotifications(data as Notification[]);
+  }
+
+  async function fetchFinalizedBatches() {
+    const { data, error } = await supabase
+      .from('batch')
+      .select('*')
+      .eq('is_finalized', true)
+      .order('created_at', { ascending: false });
+    if (!error && data) setBatches(data as Batch[]);
+    console.log('Fetched finalized batches:', data);
   }
 
   async function handleLogin(e: React.FormEvent) {
@@ -96,6 +119,7 @@ function App() {
       { title, message, author: user.email }
     ]);
     if (error) {
+      console.error('Error posting notification:', error);
     } else {
       setTitle('');
       setMessage('');
@@ -106,6 +130,7 @@ function App() {
   async function handleDeleteNotification(id: number) {
     const { error } = await supabase.from('notifications').delete().eq('id', id);
     if (error) {
+      console.error('Error deleting notification:', error);
     } else {
       fetchNotifications();
     }
@@ -135,6 +160,13 @@ function App() {
       <Box sx={{ background: '#f2f8fd', minHeight: '100vh', width: '100vw', position: 'relative', display: 'flex', flexDirection: 'column' }}>
         <Header onProfileClick={handleProfileClick} goToWalmart={goToWalmart} />
         <NotificationBanner notification={latestNotification} show={!user && showBanner} onClose={() => setShowBanner(false)} />
+        {/* Finalized Batches Section */}
+        <Box sx={{ maxWidth: 800, mx: 'auto', mt: 3, width: '100%' }}>
+          {batches.map(batch => (
+            <BatchCard key={batch.id} {...batch} />
+          ))}
+        </Box>
+        {/* End Finalized Batches Section */}
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           {user && (
             <Box sx={{
